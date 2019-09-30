@@ -1,6 +1,8 @@
 package org.loveyoupeng.raft;
 
-public interface RaftAgent {
+import org.agrona.concurrent.Agent;
+
+public interface RaftAgent extends Agent {
 
 
   String getAgentId();

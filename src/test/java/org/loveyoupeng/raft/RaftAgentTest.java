@@ -14,9 +14,11 @@ public class RaftAgentTest {
     members.add(MemberBuilder.memberBuilder().memberId("memberId1").build());
     members.add(MemberBuilder.memberBuilder().memberId("memberId2").build());
     final RaftAgent agent = RaftAgentBuilder.builder().agentId("agentId")
-        .addMembers(members).build();
+        .addMembers(members).electionTimeoutLowerBound(1000L).electionTimeoutUpperBound(1500L)
+        .build();
 
     assertEquals("agentId", agent.getAgentId());
     assertEquals(Role.Follower, agent.getRole());
+    assertEquals("agentId(Follower)", agent.roleName());
   }
 }

@@ -10,6 +10,8 @@ public class RaftAgentBuilder {
 
   private String agentId;
   private Set<Member> members = new HashSet<>();
+  private long electionTimeoutLowerBound;
+  private long electionTimeoutUpperBound;
 
   public static RaftAgentBuilder builder() {
     return new RaftAgentBuilder();
@@ -26,7 +28,18 @@ public class RaftAgentBuilder {
   }
 
   public RaftAgent build() {
-    return new DefaultRaftAgent(agentId, members);
+    return new DefaultRaftAgent(agentId, members, electionTimeoutLowerBound,
+        electionTimeoutUpperBound);
   }
 
+  public RaftAgentBuilder electionTimeoutLowerBound(final long electionTimeoutLowerBound) {
+    this.electionTimeoutLowerBound = electionTimeoutLowerBound;
+    return this;
+  }
+
+
+  public RaftAgentBuilder electionTimeoutUpperBound(final long electionTimeoutUpperBound) {
+    this.electionTimeoutUpperBound = electionTimeoutUpperBound;
+    return this;
+  }
 }

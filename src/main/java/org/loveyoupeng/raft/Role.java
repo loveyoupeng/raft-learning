@@ -1,5 +1,5 @@
 package org.loveyoupeng.raft;
 
 public enum Role {
-  Follower
+  Candidate, Follower
 }
