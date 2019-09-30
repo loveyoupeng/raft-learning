@@ -8,22 +8,30 @@ import static org.loveyoupeng.raft.Role.Follower;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import org.agrona.concurrent.QueuedPipe;
 import org.loveyoupeng.raft.Member;
 import org.loveyoupeng.raft.RaftAgent;
 import org.loveyoupeng.raft.Role;
+import org.loveyoupeng.raft.impl.command.Command;
 
 public class DefaultRaftAgent implements RaftAgent {
 
   private final String agentId;
+  private final QueuedPipe<Command> inputChannel;
   private final long electionTimeoutLowerBound;
   private final long electionTimeoutUpperBound;
   private final Map<String, Member> members;
   private Role role;
-  private long electionTimeouut;
+  private long electionTimeout;
+  private long currentTerm;
 
-  public DefaultRaftAgent(final String agentId, final Set<Member> members,
+  public DefaultRaftAgent(final String agentId,
+      final QueuedPipe<Command> inputChannel,
+      final Set<Member> members,
       final long electionTimeoutLowerBound, final long electionTimeoutUpperBound) {
     this.agentId = agentId;
+    this.inputChannel = inputChannel;
+    this.currentTerm = 0L;
     this.electionTimeoutLowerBound = electionTimeoutLowerBound;
     this.electionTimeoutUpperBound = electionTimeoutUpperBound;
     this.role = Follower;
@@ -43,8 +51,13 @@ public class DefaultRaftAgent implements RaftAgent {
   }
 
   @Override
+  public long getCurrentTerm() {
+    return currentTerm;
+  }
+
+  @Override
   public void onStart() {
-    electionTimeouut = System.currentTimeMillis() + nextTimeout();
+    electionTimeout = System.currentTimeMillis() + nextTimeout();
   }
 
   private long nextTimeout() {
@@ -55,7 +68,7 @@ public class DefaultRaftAgent implements RaftAgent {
   @Override
   public int doWork() throws Exception {
     if (Follower == role) {
-      if (System.currentTimeMillis() > electionTimeouut) {
+      if (System.currentTimeMillis() > electionTimeout) {
         role = Candidate;
       }
     }

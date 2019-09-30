@@ -3,7 +3,9 @@ package org.loveyoupeng.raft;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import org.agrona.concurrent.QueuedPipe;
 import org.loveyoupeng.raft.impl.DefaultRaftAgent;
+import org.loveyoupeng.raft.impl.command.Command;
 
 
 public class RaftAgentBuilder {
@@ -12,6 +14,7 @@ public class RaftAgentBuilder {
   private Set<Member> members = new HashSet<>();
   private long electionTimeoutLowerBound;
   private long electionTimeoutUpperBound;
+  private QueuedPipe<Command> inputChannel;
 
   public static RaftAgentBuilder builder() {
     return new RaftAgentBuilder();
@@ -28,7 +31,7 @@ public class RaftAgentBuilder {
   }
 
   public RaftAgent build() {
-    return new DefaultRaftAgent(agentId, members, electionTimeoutLowerBound,
+    return new DefaultRaftAgent(agentId, inputChannel, members, electionTimeoutLowerBound,
         electionTimeoutUpperBound);
   }
 
@@ -40,6 +43,11 @@ public class RaftAgentBuilder {
 
   public RaftAgentBuilder electionTimeoutUpperBound(final long electionTimeoutUpperBound) {
     this.electionTimeoutUpperBound = electionTimeoutUpperBound;
+    return this;
+  }
+
+  public RaftAgentBuilder inputChannel(final QueuedPipe<Command> inputChannel) {
+    this.inputChannel = inputChannel;
     return this;
   }
 }
