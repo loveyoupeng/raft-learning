@@ -1,6 +1,6 @@
 package org.loveyoupeng.raft.impl.command;
 
-public interface AppendEntriesRequest extends Command {
+public interface VoteRequest extends Command {
 
   @Override
   default boolean accept(final CommandHandler handler) {
@@ -10,5 +10,9 @@ public interface AppendEntriesRequest extends Command {
   String getAgentId();
 
   long getProposedTerm();
+
+  long getLastLogTerm();
+
+  long getLastLogIndex();
 
 }
