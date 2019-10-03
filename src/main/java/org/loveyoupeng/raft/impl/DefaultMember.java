@@ -14,4 +14,9 @@ public class DefaultMember implements Member {
   public String getAgentId() {
     return agentId;
   }
+
+  @Override
+  public void responseToVote(final String agentId, final long term, final boolean granted) {
+    // TODO : to be implemented
+  }
 }

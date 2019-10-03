@@ -26,6 +26,10 @@ dependencies {
 
     implementation 'org.slf4j:slf4j-api:1.7.28'
 
+    implementation 'net.openhft:chronicle-queue:5.17.23'
+
+    implementation 'net.openhft:chronicle-wire:2.17.48'
+
     implementation 'org.agrona:agrona:1.0.7'
 
     // Use JUnit test framework

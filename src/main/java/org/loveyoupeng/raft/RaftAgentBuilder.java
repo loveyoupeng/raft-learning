@@ -1,5 +1,6 @@
 package org.loveyoupeng.raft;
 
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -15,6 +16,7 @@ public class RaftAgentBuilder {
   private long electionTimeoutLowerBound;
   private long electionTimeoutUpperBound;
   private QueuedPipe<Command> inputChannel;
+  private Path logPath;
 
   public static RaftAgentBuilder builder() {
     return new RaftAgentBuilder();
@@ -31,7 +33,7 @@ public class RaftAgentBuilder {
   }
 
   public RaftAgent build() {
-    return new DefaultRaftAgent(agentId, inputChannel, members, electionTimeoutLowerBound,
+    return new DefaultRaftAgent(agentId, inputChannel, logPath, members, electionTimeoutLowerBound,
         electionTimeoutUpperBound);
   }
 
@@ -48,6 +50,11 @@ public class RaftAgentBuilder {
 
   public RaftAgentBuilder inputChannel(final QueuedPipe<Command> inputChannel) {
     this.inputChannel = inputChannel;
+    return this;
+  }
+
+  public RaftAgentBuilder logPath(final Path logPath) {
+    this.logPath = logPath;
     return this;
   }
 }

@@ -3,10 +3,16 @@ package org.loveyoupeng.raft.impl;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.queue.ExcerptAppender;
+import net.openhft.chronicle.queue.ExcerptTailer;
+import net.openhft.chronicle.queue.TailerDirection;
+import net.openhft.chronicle.wire.DocumentContext;
 import org.agrona.concurrent.QueuedPipe;
 import org.loveyoupeng.raft.Member;
 import org.loveyoupeng.raft.RaftAgent;
@@ -23,6 +29,10 @@ public class DefaultRaftAgent implements RaftAgent {
   private final Map<String, Member> members;
   private final AgentRoleStrategy followerAgentStrategy;
   private final AgentRoleStrategy candidateAgentStrategy;
+  private final Path logPath;
+  private final ExcerptAppender appender;
+  private final ExcerptTailer tailer;
+  private final ChronicleQueue logQueue;
   private long electionTimeout;
   private long currentTerm;
   private AgentRoleStrategy roleStrategy;
@@ -33,7 +43,7 @@ public class DefaultRaftAgent implements RaftAgent {
 
   public DefaultRaftAgent(final String agentId,
       final QueuedPipe<Command> inputChannel,
-      final Set<Member> members,
+      final Path logPath, final Set<Member> members,
       final long electionTimeoutLowerBound, final long electionTimeoutUpperBound) {
     this.agentId = agentId;
     this.inputChannel = inputChannel;
@@ -49,6 +59,26 @@ public class DefaultRaftAgent implements RaftAgent {
     candidateAgentStrategy = new CandidateAgentStrategy(this);
     this.roleStrategy = this.followerAgentStrategy;
     votedFor = null;
+    this.logPath = logPath;
+    logQueue = ChronicleQueue.single(logPath.toAbsolutePath().toString());
+    appender = logQueue.acquireAppender();
+    tailer = logQueue.createTailer();
+    initFromLog();
+  }
+
+  private void initFromLog() {
+    final DocumentContext documentContext = tailer.direction(TailerDirection.BACKWARD).toEnd()
+        .readingDocument();
+    if (documentContext.isPresent()) {
+      this.lastLogTerm = documentContext.wire().read("term").int64();
+      this.lastLogIndex = tailer.index() & ((1L << 32) - 1);
+      this.currentTerm = lastLogTerm;
+    }
+    tailer.direction(TailerDirection.FORWARD).toEnd();
+  }
+
+  public Path getLogPath() {
+    return logPath;
   }
 
   @Override
@@ -115,11 +145,13 @@ public class DefaultRaftAgent implements RaftAgent {
     return result;
   }
 
-  public void voteFor(final String candidateId, final long proposedTerm) {
+  public void grantVoteFor(final String candidateId, final long proposedTerm) {
     this.votedFor = candidateId;
     if (proposedTerm > currentTerm) {
       currentTerm = proposedTerm;
     }
+    members.get(candidateId).responseToVote(agentId, currentTerm, true);
+
   }
 
   @Override
@@ -134,5 +166,9 @@ public class DefaultRaftAgent implements RaftAgent {
 
   public void clearVotedFor() {
     votedFor = null;
+  }
+
+  public void rejectVoteFor(final String candidateId, final long proposedTerm) {
+    members.get(candidateId).responseToVote(agentId, currentTerm, false);
   }
 }

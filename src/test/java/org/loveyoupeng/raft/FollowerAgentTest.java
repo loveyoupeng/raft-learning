@@ -1,15 +1,24 @@
 package org.loveyoupeng.raft;
 
+import static java.util.Arrays.asList;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.loveyoupeng.raft.Role.Candidate;
+import static org.loveyoupeng.raft.TestUtils.setAgentTerm;
 import static org.loveyoupeng.raft.TestUtils.waitFollowerTimeout;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.agrona.IoUtil;
 import org.agrona.concurrent.OneToOneConcurrentArrayQueue;
 import org.agrona.concurrent.QueuedPipe;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.loveyoupeng.raft.impl.command.Command;
@@ -23,21 +32,32 @@ public class FollowerAgentTest {
   public static final String AGENT_ID = "agentId";
   public static final long ELECTION_TIMEOUT_LOWER_BOUND = 500L;
   public static final long ELECTION_TIMEOUT_UPPER_BOUND = 1000L;
-  private Collection<Member> members;
   private RaftAgent agent;
   private QueuedPipe<Command> inputChannel;
+  private Member member1;
+  private Member member2;
+  private Path logPath;
 
   @Before
-  public void before() {
-    members = new ArrayList<>();
-    members.add(MemberBuilder.memberBuilder().memberId(MEMBER_ID_1).build());
-    members.add(MemberBuilder.memberBuilder().memberId(MEMBER_ID_2).build());
+  public void before() throws Exception {
+    member1 = mock(Member.class);
+    member2 = mock(Member.class);
+    when(member1.getAgentId()).thenReturn(MEMBER_ID_1);
+    when(member2.getAgentId()).thenReturn(MEMBER_ID_2);
+    logPath = Files.createTempDirectory("follower-agent-test-");
+
     inputChannel = new OneToOneConcurrentArrayQueue<>(16);
-    agent = RaftAgentBuilder.builder().agentId(AGENT_ID).inputChannel(inputChannel)
+    agent = RaftAgentBuilder.builder().agentId(AGENT_ID).inputChannel(inputChannel).logPath(logPath)
         .electionTimeoutLowerBound(
             ELECTION_TIMEOUT_LOWER_BOUND)
-        .electionTimeoutUpperBound(ELECTION_TIMEOUT_UPPER_BOUND).addMembers(members).build();
+        .electionTimeoutUpperBound(ELECTION_TIMEOUT_UPPER_BOUND)
+        .addMembers(asList(member1, member2)).build();
     agent.onStart();
+  }
+
+  @After
+  public void after() {
+    IoUtil.delete(logPath.toFile(), true);
   }
 
   @Test(timeout = 2 * ELECTION_TIMEOUT_UPPER_BOUND)
@@ -61,5 +81,27 @@ public class FollowerAgentTest {
     assertTrue(inputChannel.isEmpty());
     assertEquals(MEMBER_ID_1, agent.getVotedFor().orElseThrow());
     assertEquals(1L, agent.getCurrentTerm());
+    verify(member1, times(1)).responseToVote(AGENT_ID, 1L, true);
   }
+
+  @Test
+  public void test_follower_request_for_rejected_due_to_lower_term() throws Exception {
+    setAgentTerm(agent, 3L);
+    final VoteRequest request = new MockVoteRequest(MEMBER_ID_1, 2L, 0L, 0L);
+
+    inputChannel.offer(request);
+    assertEquals(1, agent.doWork());
+
+    assertTrue(inputChannel.isEmpty());
+    assertFalse(agent.getVotedFor().isPresent());
+    assertEquals(3L, agent.getCurrentTerm());
+    verify(member1, times(1)).responseToVote(AGENT_ID, 3L, false);
+  }
+
+  @Test
+  public void test_follower_request_for_rejected_due_to_larger_logger_term() throws Exception {
+    setAgentTerm(agent, 3L);
+
+  }
+
 }

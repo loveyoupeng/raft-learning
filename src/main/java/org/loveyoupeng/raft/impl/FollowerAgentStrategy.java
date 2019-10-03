@@ -49,11 +49,13 @@ public class FollowerAgentStrategy implements AgentRoleStrategy {
         if (agent.getLastLogTerm() < request.getLastLogTerm() || (
             agent.getLastLogTerm() == request.getLastLogTerm() && agent.getLastLogIndex() <= request
                 .getLastLogIndex())) {
-          agent.voteFor(request.getAgentId(), request.getProposedTerm());
+          agent.grantVoteFor(request.getAgentId(), request.getProposedTerm());
+          agent.touchTimestamp();
         }
       }
     } else {
       //TODO : to be implemented
+      agent.rejectVoteFor(request.getAgentId(), request.getProposedTerm());
     }
     return true;
   }
