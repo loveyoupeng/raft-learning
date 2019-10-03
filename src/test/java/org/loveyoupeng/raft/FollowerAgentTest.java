@@ -15,6 +15,8 @@ import static org.mockito.Mockito.when;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import net.openhft.chronicle.queue.ChronicleQueue;
+import net.openhft.chronicle.queue.ExcerptAppender;
 import org.agrona.IoUtil;
 import org.agrona.concurrent.OneToOneConcurrentArrayQueue;
 import org.agrona.concurrent.QueuedPipe;
@@ -99,9 +101,73 @@ public class FollowerAgentTest {
   }
 
   @Test
-  public void test_follower_request_for_rejected_due_to_larger_logger_term() throws Exception {
-    setAgentTerm(agent, 3L);
+  public void test_follower_request_for_rejected_due_to_already_voted() throws Exception {
+    final VoteRequest winnerRequest = new MockVoteRequest(MEMBER_ID_1, 2L, 0L, 0L);
+
+    inputChannel.offer(winnerRequest);
+    assertEquals(1, agent.doWork());
+
+    assertTrue(inputChannel.isEmpty());
+    assertEquals(MEMBER_ID_1, agent.getVotedFor().orElseThrow());
+    assertEquals(2L, agent.getCurrentTerm());
+    verify(member1, times(1)).responseToVote(AGENT_ID, 2L, true);
+
+    final VoteRequest loserRequest = new MockVoteRequest(MEMBER_ID_2, 2L, 0L, 0L);
+
+    inputChannel.offer(loserRequest);
+    assertEquals(1, agent.doWork());
+
+    assertTrue(inputChannel.isEmpty());
+    assertEquals(MEMBER_ID_1, agent.getVotedFor().orElseThrow());
+    assertEquals(2L, agent.getCurrentTerm());
+    verify(member1, times(1)).responseToVote(AGENT_ID, 2L, false);
 
   }
+
+  @Test
+  public void test_follower_request_for_rejected_due_to_larger_logger_term() throws Exception {
+    try (final ChronicleQueue log = ChronicleQueue.single(logPath.toAbsolutePath().toString())) {
+      final ExcerptAppender appender = log.acquireAppender();
+      appender.writeDocument(writer -> writer.write("term").fixedInt64(0));
+      appender.writeDocument(writer -> writer.write("term").fixedInt64(3));
+
+      TestUtils.reloadLog(agent);
+
+      final VoteRequest request = new MockVoteRequest(MEMBER_ID_1, 4L, 2L, 3L);
+      inputChannel.offer(request);
+
+      assertEquals(1, agent.doWork());
+
+      assertTrue(inputChannel.isEmpty());
+      assertFalse(agent.getVotedFor().isPresent());
+      assertEquals(4L, agent.getCurrentTerm());
+      verify(member1, times(1)).responseToVote(AGENT_ID, 4L, false);
+    }
+  }
+
+  @Test
+  public void test_follower_request_for_rejected_due_to_larger_logger_index() throws Exception {
+    try (final ChronicleQueue log = ChronicleQueue.single(logPath.toAbsolutePath().toString())) {
+      final ExcerptAppender appender = log.acquireAppender();
+      appender.writeDocument(writer -> writer.write("term").fixedInt64(0));
+      appender.writeDocument(writer -> writer.write("term").fixedInt64(2));
+      appender.writeDocument(writer -> writer.write("term").fixedInt64(2));
+      appender.writeDocument(writer -> writer.write("term").fixedInt64(2));
+      appender.writeDocument(writer -> writer.write("term").fixedInt64(3));
+
+      TestUtils.reloadLog(agent);
+
+      final VoteRequest request = new MockVoteRequest(MEMBER_ID_1, 4L, 3L, 3L);
+      inputChannel.offer(request);
+
+      assertEquals(1, agent.doWork());
+
+      assertTrue(inputChannel.isEmpty());
+      assertFalse(agent.getVotedFor().isPresent());
+      assertEquals(4L, agent.getCurrentTerm());
+      verify(member1, times(1)).responseToVote(AGENT_ID, 4L, false);
+    }
+  }
+
 
 }

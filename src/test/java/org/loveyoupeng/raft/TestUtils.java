@@ -3,6 +3,7 @@ package org.loveyoupeng.raft;
 import static org.loveyoupeng.raft.Role.Follower;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import org.loveyoupeng.raft.impl.DefaultRaftAgent;
 
 public class TestUtils {
@@ -19,5 +20,15 @@ public class TestUtils {
     currentTermField.setAccessible(true);
     currentTermField.setLong(agent, term);
     currentTermField.setAccessible(false);
+  }
+
+  static void reloadLog(final RaftAgent agent) throws Exception {
+    final Method method = DefaultRaftAgent.class
+        .getDeclaredMethod("initFromLog", null);
+    method.setAccessible(true);
+
+    method.invoke(agent);
+
+    method.setAccessible(false);
   }
 }

@@ -53,10 +53,8 @@ public class FollowerAgentStrategy implements AgentRoleStrategy {
           agent.touchTimestamp();
         }
       }
-    } else {
-      //TODO : to be implemented
-      agent.rejectVoteFor(request.getAgentId(), request.getProposedTerm());
     }
+    agent.rejectVoteFor(request.getAgentId(), request.getProposedTerm());
     return true;
   }
 }

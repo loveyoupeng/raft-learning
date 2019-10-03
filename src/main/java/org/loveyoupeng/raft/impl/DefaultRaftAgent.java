@@ -60,7 +60,7 @@ public class DefaultRaftAgent implements RaftAgent {
     this.roleStrategy = this.followerAgentStrategy;
     votedFor = null;
     this.logPath = logPath;
-    logQueue = ChronicleQueue.single(logPath.toAbsolutePath().toString());
+    logQueue = ChronicleQueue.singleBuilder(logPath.toAbsolutePath().toString()).build();
     appender = logQueue.acquireAppender();
     tailer = logQueue.createTailer();
     initFromLog();
@@ -169,6 +169,10 @@ public class DefaultRaftAgent implements RaftAgent {
   }
 
   public void rejectVoteFor(final String candidateId, final long proposedTerm) {
+    if (proposedTerm > currentTerm) {
+      currentTerm = proposedTerm;
+    }
     members.get(candidateId).responseToVote(agentId, currentTerm, false);
   }
+
 }
