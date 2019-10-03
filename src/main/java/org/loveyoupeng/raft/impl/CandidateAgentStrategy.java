@@ -19,12 +19,15 @@ public class CandidateAgentStrategy implements AgentRoleStrategy {
 
   @Override
   public int doWork() throws Exception {
-    return 0;
+    int work = agent.electionWork();
+    work += agent.process(this);
+    return work;
   }
 
   @Override
   public void initWork() {
-
+    agent.touchTimestamp();
+    agent.initElection();
   }
 
   @Override

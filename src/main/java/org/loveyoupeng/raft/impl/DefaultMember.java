@@ -19,4 +19,10 @@ public class DefaultMember implements Member {
   public void responseToVote(final String agentId, final long term, final boolean granted) {
     // TODO : to be implemented
   }
+
+  @Override
+  public void requestForVote(final String agentId, final long proposedTerm, final long lastLogTerm,
+      final long lastLogIndex) {
+    // TODO : to be implemented
+  }
 }

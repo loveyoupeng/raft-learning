@@ -40,6 +40,7 @@ public class DefaultRaftAgent implements RaftAgent {
   private String votedFor;
   private long lastLogTerm;
   private long lastLogIndex;
+  private final Election election;
 
   public DefaultRaftAgent(final String agentId,
       final QueuedPipe<Command> inputChannel,
@@ -64,6 +65,7 @@ public class DefaultRaftAgent implements RaftAgent {
     appender = logQueue.acquireAppender();
     tailer = logQueue.createTailer();
     initFromLog();
+    election = new Election(agentId);
   }
 
   private void initFromLog() {
@@ -131,6 +133,7 @@ public class DefaultRaftAgent implements RaftAgent {
 
   public void switchToCandidate() {
     roleStrategy = candidateAgentStrategy;
+    roleStrategy.initWork();
   }
 
   public int process(final CommandHandler handler) {
@@ -175,4 +178,18 @@ public class DefaultRaftAgent implements RaftAgent {
     members.get(candidateId).responseToVote(agentId, currentTerm, false);
   }
 
+  public void initElection() {
+    currentTerm++;
+    election.clear();
+  }
+
+  public int electionWork() {
+    if (!election.isRequestSend()) {
+      members.values().forEach(member -> member
+          .requestForVote(agentId, currentTerm, getLastLogTerm(), getLastLogIndex()));
+      election.setRequestSend(true);
+      return 1;
+    }
+    return 0;
+  }
 }
