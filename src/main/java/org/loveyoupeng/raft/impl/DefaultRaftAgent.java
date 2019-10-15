@@ -33,6 +33,7 @@ public class DefaultRaftAgent implements RaftAgent {
   private final ExcerptAppender appender;
   private final ExcerptTailer tailer;
   private final ChronicleQueue logQueue;
+  private final Election election;
   private long electionTimeout;
   private long currentTerm;
   private AgentRoleStrategy roleStrategy;
@@ -40,7 +41,6 @@ public class DefaultRaftAgent implements RaftAgent {
   private String votedFor;
   private long lastLogTerm;
   private long lastLogIndex;
-  private final Election election;
 
   public DefaultRaftAgent(final String agentId,
       final QueuedPipe<Command> inputChannel,
@@ -118,25 +118,25 @@ public class DefaultRaftAgent implements RaftAgent {
     return agentId + "(" + roleStrategy.getRole() + ")";
   }
 
-  public void touchTimestamp() {
+  void touchTimestamp() {
     activityTimestamp = System.currentTimeMillis();
   }
 
-  public boolean electionTimeout() {
+  boolean electionTimeout() {
     return activityTimestamp + electionTimeout < System.currentTimeMillis();
   }
 
-  public void resetElectionTimeout() {
+  void resetElectionTimeout() {
     this.electionTimeout = ThreadLocalRandom.current()
         .nextLong(electionTimeoutLowerBound, electionTimeoutUpperBound);
   }
 
-  public void switchToCandidate() {
+  void switchToCandidate() {
     roleStrategy = candidateAgentStrategy;
     roleStrategy.initWork();
   }
 
-  public int process(final CommandHandler handler) {
+  int process(final CommandHandler handler) {
     int result = 0;
     Command command;
     while ((command = inputChannel.poll()) != null) {
@@ -148,7 +148,7 @@ public class DefaultRaftAgent implements RaftAgent {
     return result;
   }
 
-  public void grantVoteFor(final String candidateId, final long proposedTerm) {
+  void grantVoteFor(final String candidateId, final long proposedTerm) {
     this.votedFor = candidateId;
     if (proposedTerm > currentTerm) {
       currentTerm = proposedTerm;
@@ -167,23 +167,24 @@ public class DefaultRaftAgent implements RaftAgent {
     return lastLogIndex;
   }
 
-  public void clearVotedFor() {
+  void clearVotedFor() {
     votedFor = null;
   }
 
-  public void rejectVoteFor(final String candidateId, final long proposedTerm) {
+  void rejectVoteFor(final String candidateId, final long proposedTerm) {
     if (proposedTerm > currentTerm) {
       currentTerm = proposedTerm;
     }
     members.get(candidateId).responseToVote(agentId, currentTerm, false);
   }
 
-  public void initElection() {
+  void initElection() {
     currentTerm++;
     election.clear();
+    election.responseToVote(agentId, currentTerm, true);
   }
 
-  public int electionWork() {
+  int electionWork() {
     if (!election.isRequestSend()) {
       members.values().forEach(member -> member
           .requestForVote(agentId, currentTerm, getLastLogTerm(), getLastLogIndex()));
@@ -191,5 +192,16 @@ public class DefaultRaftAgent implements RaftAgent {
       return 1;
     }
     return 0;
+  }
+
+  boolean responseToVote(final String agentId, final long currentTerm,
+      final boolean granted) {
+    election.responseToVote(agentId, currentTerm, granted);
+    if (election.isWin()) {
+      // TODO : switch to leader
+    } else {
+      return false;
+    }
+    return true;
   }
 }

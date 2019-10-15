@@ -5,8 +5,9 @@ import static org.loveyoupeng.raft.Role.Follower;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import org.loveyoupeng.raft.impl.DefaultRaftAgent;
+import org.loveyoupeng.raft.impl.Election;
 
-public class TestUtils {
+class TestUtils {
 
   static void waitFollowerTimeout(final RaftAgent agent) throws Exception {
     while (Follower == agent.getRole()) {
@@ -24,11 +25,19 @@ public class TestUtils {
 
   static void reloadLog(final RaftAgent agent) throws Exception {
     final Method method = DefaultRaftAgent.class
-        .getDeclaredMethod("initFromLog", null);
+        .getDeclaredMethod("initFromLog");
     method.setAccessible(true);
 
     method.invoke(agent);
 
     method.setAccessible(false);
+  }
+
+  static Election getElection(final RaftAgent agent) throws Exception {
+    final Field electionField = DefaultRaftAgent.class.getDeclaredField("election");
+    electionField.setAccessible(true);
+    final Election election = (Election) electionField.get(agent);
+    electionField.setAccessible(false);
+    return election;
   }
 }

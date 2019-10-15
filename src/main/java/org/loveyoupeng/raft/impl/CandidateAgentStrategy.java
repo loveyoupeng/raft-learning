@@ -3,12 +3,13 @@ package org.loveyoupeng.raft.impl;
 import org.loveyoupeng.raft.Role;
 import org.loveyoupeng.raft.impl.command.AppendEntriesRequest;
 import org.loveyoupeng.raft.impl.command.VoteRequest;
+import org.loveyoupeng.raft.impl.command.VoteResponse;
 
 public class CandidateAgentStrategy implements AgentRoleStrategy {
 
   private final DefaultRaftAgent agent;
 
-  public CandidateAgentStrategy(final DefaultRaftAgent agent) {
+  CandidateAgentStrategy(final DefaultRaftAgent agent) {
     this.agent = agent;
   }
 
@@ -18,7 +19,7 @@ public class CandidateAgentStrategy implements AgentRoleStrategy {
   }
 
   @Override
-  public int doWork() throws Exception {
+  public int doWork() {
     int work = agent.electionWork();
     work += agent.process(this);
     return work;
@@ -40,5 +41,11 @@ public class CandidateAgentStrategy implements AgentRoleStrategy {
   public boolean process(final VoteRequest request) {
     //TODO : to be implemented
     return false;
+  }
+
+  @Override
+  public boolean process(final VoteResponse voteResponse) {
+    return agent.responseToVote(voteResponse.getAgentId(), voteResponse.getCurrentTerm(),
+        voteResponse.isGranted());
   }
 }

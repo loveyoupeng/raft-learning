@@ -6,6 +6,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.loveyoupeng.raft.Role.Candidate;
+import static org.loveyoupeng.raft.TestUtils.getElection;
 import static org.loveyoupeng.raft.TestUtils.setAgentTerm;
 import static org.loveyoupeng.raft.TestUtils.waitFollowerTimeout;
 import static org.mockito.Mockito.mock;
@@ -23,17 +24,19 @@ import org.agrona.concurrent.QueuedPipe;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.loveyoupeng.raft.command.MockVoteRequest;
+import org.loveyoupeng.raft.impl.Election;
 import org.loveyoupeng.raft.impl.command.Command;
 import org.loveyoupeng.raft.impl.command.VoteRequest;
 
 public class FollowerAgentTest {
 
 
-  public static final String MEMBER_ID_1 = "memberId1";
-  public static final String MEMBER_ID_2 = "memberId2";
-  public static final String AGENT_ID = "agentId";
-  public static final long ELECTION_TIMEOUT_LOWER_BOUND = 500L;
-  public static final long ELECTION_TIMEOUT_UPPER_BOUND = 1000L;
+  private static final String MEMBER_ID_1 = "memberId1";
+  private static final String MEMBER_ID_2 = "memberId2";
+  private static final String AGENT_ID = "agentId";
+  private static final long ELECTION_TIMEOUT_LOWER_BOUND = 500L;
+  private static final long ELECTION_TIMEOUT_UPPER_BOUND = 1000L;
   private RaftAgent agent;
   private QueuedPipe<Command> inputChannel;
   private Member member1;
@@ -66,6 +69,8 @@ public class FollowerAgentTest {
   public void test_follower_time_out() throws Exception {
     final long start = System.currentTimeMillis();
     waitFollowerTimeout(agent);
+    final Election election = getElection(agent);
+    assertTrue(election.isGranted(AGENT_ID).orElse(false));
 
     assertSame(Candidate, agent.getRole());
     final long duration = System.currentTimeMillis() - start;

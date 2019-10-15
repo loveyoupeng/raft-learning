@@ -1,7 +1,11 @@
 package org.loveyoupeng.raft.impl;
 
+import static java.util.Optional.empty;
+import static java.util.Optional.of;
+
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class Election {
 
@@ -9,25 +13,36 @@ public class Election {
   private final Map<String, Boolean> votes;
   private boolean requestSend;
 
-  public Election(final String agentId) {
+  Election(final String agentId) {
     this.agentId = agentId;
     requestSend = false;
     votes = new HashMap<>();
   }
 
-  public boolean isRequestSend() {
+  boolean isRequestSend() {
     return requestSend;
   }
 
-  public void setRequestSend(final boolean requestSend) {
+  void setRequestSend(final boolean requestSend) {
     this.requestSend = requestSend;
   }
 
-  public void clear() {
+  void clear() {
     requestSend = false;
     votes.clear();
     votes.put(agentId, true);
   }
 
 
+  public boolean isWin() {
+    return false;
+  }
+
+  public Optional<Boolean> isGranted(final String agentId) {
+    return votes.containsKey(agentId) ? of(votes.get(agentId)) : empty();
+  }
+
+  void responseToVote(final String agentId, final long currentTerm, final boolean granted) {
+    votes.put(agentId, granted);
+  }
 }

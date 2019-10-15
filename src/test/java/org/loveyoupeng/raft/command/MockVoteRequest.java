@@ -1,4 +1,4 @@
-package org.loveyoupeng.raft;
+package org.loveyoupeng.raft.command;
 
 import org.loveyoupeng.raft.impl.command.VoteRequest;
 
